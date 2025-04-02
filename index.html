@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trading Journal & Progress Tracker</title>
+    <!-- Include Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <style>
+      /* --- Base & Utility Styles --- */
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+          "Segoe UI Symbol";
+        line-height: 1.6;
+        margin: 0;
+        background-color: #f8f9fa;
+        color: #343a40;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        flex-grow: 1; /* Allows container to grow */
+      }
+
+      /* Hide elements by default */
+      .view {
+        display: none;
+      }
+      .view.active {
+        display: block;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #0056b3; /* Darker blue */
+        margin-top: 1em;
+        margin-bottom: 0.6em;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 1em;
+      }
+
+      button {
+        padding: 10px 18px;
+        font-size: 1rem;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        margin: 5px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #adb5bd;
+        cursor: not-allowed;
+      }
+
+      button.secondary {
+        background-color: #6c757d;
+      }
+      button.secondary:hover {
+        background-color: #5a6268;
+      }
+      button.danger {
+        background-color: #dc3545;
+      }
+      button.danger:hover {
+        background-color: #c82333;
+      }
+      button.success {
+        background-color: #28a745;
+      }
+      button.success:hover {
+        background-color: #218838;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      input[type="date"],
+      input[type="password"],
+      select {
+        padding: 10px;
+        margin-bottom: 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1rem;
+        width: calc(100% - 22px); /* Full width minus padding/border */
+        max-width: 350px; /* Limit max width */
+        display: block; /* Make inputs block level */
+      }
+
+      label {
+        display: block; /* Block level labels */
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .form-group {
+        margin-bottom: 15px;
+      }
+
+      /* --- Message Styles --- */
+      #message-area {
+        min-height: 40px;
+        margin-bottom: 15px;
+      }
+      .message {
+        padding: 12px 15px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        text-align: center;
+        font-weight: 500;
+        display: none; /* Hide initially */
+      }
+      .message.loading {
+        background-color: #e9ecef;
+        color: #495057;
+        display: block;
+      }
+      .message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+        display: block;
+      }
+      .message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+        display: block;
+      }
+      .message.info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+        display: block;
+      }
+
+      /* --- Profile List View --- */
+      #profile-list-view ul {
+        list-style: none;
+        padding: 0;
+      }
+      #profile-list-view li {
+        background-color: #e9ecef;
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      #profile-list-view li span {
+        font-weight: 600;
+        cursor: pointer;
+        color: #0056b3;
+        flex-grow: 1;
+        margin-right: 10px;
+      }
+      #profile-list-view li span:hover {
+        text-decoration: underline;
+      }
+      #profile-list-view .profile-actions button {
+        padding: 5px 10px;
+        font-size: 0.9rem;
+      }
+
+      #create-profile-section {
+        margin-top: 20px;
+        padding: 20px;
+        background-color: #f1f3f5;
+        border-radius: 5px;
+      }
+
+      /* --- Profile Detail View --- */
+      #profile-detail-view .back-button {
+        margin-bottom: 20px;
+      }
+
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .dashboard-card {
+        background-color: #e9ecef;
+        padding: 15px;
+        border-radius: 5px;
+      }
+      .dashboard-card h4 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        color: #495057;
+      }
+      .dashboard-card p {
+        margin: 5px 0;
+      }
+      .dashboard-card strong {
+        color: #0056b3;
+        min-width: 150px;
+        display: inline-block;
+      }
+      .status-indicator {
+        font-weight: bold;
+      }
+      .status-ahead {
+        color: #28a745;
+      }
+      .status-behind {
+        color: #dc3545;
+      }
+      .status-ontarget {
+        color: #007bff;
+      }
+      .status-awaiting {
+        color: #ffc107;
+      }
+      .status-complete {
+        color: #17a2b8;
+      }
+
+      /* --- Trader Input Section --- */
+      .trader-input-section {
+        background-color: #f1f3f5;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 30px;
+      }
+      .trader-input-section .trade-entry {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+      .trader-input-section .trade-entry input[type="number"] {
+        width: 150px;
+        margin-bottom: 0;
+      }
+      .trader-input-section .trade-summary p {
+        margin: 5px 0;
+        font-size: 0.95rem;
+      }
+      .trader-input-section .trade-summary strong {
+        color: #495057;
+      }
+      #finalize-day-btn {
+        margin-top: 15px;
+        width: 100%;
+      }
+
+      /* --- Chart Section --- */
+      .chart-section {
+        margin-bottom: 30px;
+      }
+      .chart-buttons {
+        margin-bottom: 15px;
+        text-align: center;
+      }
+      .chart-buttons button {
+        background-color: #e9ecef;
+        color: #0056b3;
+      }
+      .chart-buttons button.active {
+        background-color: #007bff;
+        color: white;
+      }
+      .chart-container {
+        position: relative;
+        /* height: 40vh; width: 80vw; max-width: 800px; */
+        max-height: 400px; /* Limit height */
+        margin: 0 auto; /* Center chart */
+        background: #fff;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        display: none; /* Hide charts initially */
+      }
+      .chart-container.active {
+        display: block;
+      }
+
+      /* --- Modals (Past Data Entry, Delete Confirm) --- */
+      .modal {
+        display: none; /* Hidden by default */
+        position: fixed; /* Stay in place */
+        z-index: 1000; /* Sit on top */
+        left: 0;
+        top: 0;
+        width: 100%; /* Full width */
+        height: 100%; /* Full height */
+        overflow: auto; /* Enable scroll if needed */
+        background-color: rgba(0, 0, 0, 0.5); /* Black w/ opacity */
+      }
+      .modal-content {
+        background-color: #fefefe;
+        margin: 10% auto; /* 10% from the top and centered */
+        padding: 25px;
+        border: 1px solid #888;
+        width: 80%; /* Could be more or less, depending on screen size */
+        max-width: 600px;
+        border-radius: 8px;
+        position: relative;
+      }
+      .modal-close {
+        color: #aaa;
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .modal-close:hover,
+      .modal-close:focus {
+        color: black;
+        text-decoration: none;
+      }
+      #past-data-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 15px;
+      }
+      #past-data-list .past-day-entry {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 8px;
+        align-items: center;
+      }
+      #past-data-list label {
+        margin-bottom: 0;
+        font-weight: normal;
+        min-width: 100px;
+      }
+      #past-data-list input {
+        width: 150px;
+        margin-bottom: 0;
+        display: inline-block;
+      }
+
+      /* --- Footer --- */
+      footer {
+        text-align: center;
+        margin-top: 30px;
+        padding: 15px;
+        font-size: 0.9em;
+        color: #6c757d;
+        border-top: 1px solid #e9ecef;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Trading Journal & Progress Tracker</h1>
+
+      <!-- Message Area for Loading/Errors/Success -->
+      <div id="message-area">
+        <div id="message-content" class="message"></div>
+      </div>
+
+      <!-- Profile List View (Default View) -->
+      <div id="profile-list-view" class="view active">
+        <h2>Select or Create a Profile</h2>
+        <ul id="profile-list">
+          <!-- Profile items will be loaded here -->
+          <li>Loading profiles...</li>
+        </ul>
+
+        <button id="show-create-profile-btn" class="success">
+          Add New Profile
+        </button>
+
+        <div id="create-profile-section" style="display: none">
+          <h3>Create New Profile</h3>
+          <div class="form-group">
+            <label for="new-profile-name">Profile Name:</label>
+            <input type="text" id="new-profile-name" required />
+          </div>
+          <div class="form-group">
+            <label for="new-initial-principal">Initial Principal ($):</label>
+            <input
+              type="number"
+              id="new-initial-principal"
+              step="0.01"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="new-daily-rate">Target Daily Interest (%):</label>
+            <input type="number" id="new-daily-rate" step="0.01" required />
+          </div>
+          <div class="form-group">
+            <label for="new-start-date">Start Date:</label>
+            <input type="date" id="new-start-date" required />
+          </div>
+          <div class="form-group">
+            <label for="new-period-days">Trading Period (Days):</label>
+            <input type="number" id="new-period-days" step="1" required />
+          </div>
+          <button id="submit-create-profile-btn">Create Profile</button>
+          <button id="cancel-create-profile-btn" class="secondary">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <!-- Profile Detail View -->
+      <div id="profile-detail-view" class="view">
+        <button id="back-to-list-btn" class="secondary back-button">
+          &larr; Back to Profile List
+        </button>
+        <h2 id="detail-profile-name">Profile Details</h2>
+
+        <!-- Investor Dashboard Section -->
+        <section class="dashboard-grid">
+          <div class="dashboard-card">
+            <h4>Account Summary</h4>
+            <p>
+              <strong>Start Date:</strong> <span id="db-start-date">--</span>
+            </p>
+            <p><strong>End Date:</strong> <span id="db-end-date">--</span></p>
+            <p>
+              <strong>Starting Principal:</strong> $<span
+                id="db-start-principal"
+                >--</span
+              >
+            </p>
+            <p>
+              <strong>Current Balance:</strong> $<span id="db-current-balance"
+                >--</span
+              >
+            </p>
+            <p>
+              <strong>Cumulative P/L:</strong> $<span id="db-cumulative-pl"
+                >--</span
+              >
+            </p>
+            <p>
+              <strong>Trading Day:</strong>
+              <span id="db-current-day-number">--</span> /
+              <span id="db-total-period-days">--</span>
+            </p>
+          </div>
+          <div class="dashboard-card">
+            <h4>Today's Target (<span id="db-today-date">--</span>)</h4>
+            <p>
+              <strong>Opening Balance:</strong> $<span
+                id="db-today-open-balance"
+                >--</span
+              >
+            </p>
+            <p>
+              <strong>Target Profit:</strong> $<span id="db-target-today"
+                >--</span
+              >
+            </p>
+            <p>
+              <strong>Target End Balance:</strong> $<span
+                id="db-target-end-balance-today"
+                >--</span
+              >
+            </p>
+          </div>
+          <div class="dashboard-card">
+            <h4>Today's Actual (<span id="db-today-date-actual">--</span>)</h4>
+            <p>
+              <strong>Actual P/L (Live):</strong> $<span id="db-actual-pl-today"
+                >0.00</span
+              >
+            </p>
+            <p>
+              <strong>Trades Made:</strong> <span id="db-trades-today">0</span>
+            </p>
+            <p>
+              <strong>Win Ratio:</strong>
+              <span id="db-win-ratio-today">N/A</span>
+            </p>
+            <p>
+              <strong>Status:</strong>
+              <span id="db-day-status" class="status-indicator status-awaiting"
+                >Awaiting Trades</span
+              >
+            </p>
+          </div>
+          <div class="dashboard-card">
+            <h4>Overall Progress</h4>
+            <p>
+              <strong>Target Comp. Bal:</strong> $<span
+                id="db-comp-target-balance"
+                >--</span
+              >
+            </p>
+            <p>
+              <strong>Status:</strong>
+              <span
+                id="db-overall-status"
+                class="status-indicator status-awaiting"
+                >--</span
+              >
+            </p>
+            <p>
+              <strong>Period Status:</strong>
+              <span
+                id="db-period-status"
+                class="status-indicator status-ontarget"
+                >Ongoing</span
+              >
+            </p>
+          </div>
+        </section>
+
+        <!-- Trader Input Section -->
+        <section id="trader-input-area" class="trader-input-section">
+          <h3>Log Today's Trades (<span id="trader-input-date">--</span>)</h3>
+          <div class="trade-entry">
+            <label for="trade-pl">Single Trade P/L ($):</label>
+            <input
+              type="number"
+              id="trade-pl"
+              step="0.01"
+              placeholder="+/- Amount"
+            />
+            <button id="add-trade-btn" class="small success">Add Trade</button>
+          </div>
+          <div class="trade-summary">
+            <h4>Today's Summary (Live)</h4>
+            <p>
+              <strong>Cumulative P/L:</strong> $<span id="live-cumulative-pl"
+                >0.00</span
+              >
+            </p>
+            <p>
+              <strong>Number of Trades:</strong>
+              <span id="live-trade-count">0</span>
+            </p>
+            <p>
+              <strong>Winning Trades:</strong>
+              <span id="live-win-count">0</span>
+            </p>
+            <p>
+              <strong>Losing Trades:</strong>
+              <span id="live-loss-count">0</span>
+            </p>
+            <p>
+              <strong>Win Percentage:</strong>
+              <span id="live-win-percentage">N/A</span>
+            </p>
+          </div>
+          <button id="finalize-day-btn" class="primary">
+            Finalize Day's P/L
+          </button>
+          <p
+            id="finalize-status"
+            style="font-style: italic; margin-top: 10px; text-align: center"
+          ></p>
+        </section>
+
+        <!-- Chart Section -->
+        <section class="chart-section">
+          <h3>Performance Charts</h3>
+          <div class="chart-buttons">
+            <button id="show-weekly-chart-btn" class="active">This Week</button>
+            <button id="show-monthly-chart-btn">This Month</button>
+            <button id="show-overall-chart-btn">Overall</button>
+          </div>
+          <div id="weekly-chart-container" class="chart-container active">
+            <canvas id="weeklyChart"></canvas>
+          </div>
+          <div id="monthly-chart-container" class="chart-container">
+            <canvas id="monthlyChart"></canvas>
+          </div>
+          <div id="overall-chart-container" class="chart-container">
+            <canvas id="overallChart"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <!-- Past Data Entry Modal -->
+      <div id="past-data-modal" class="modal">
+        <div class="modal-content">
+          <span class="modal-close" id="close-past-data-modal">&times;</span>
+          <h3>Enter Past P/L Data</h3>
+          <p>
+            Please enter the final Profit (+) or Loss (-) for each day from the
+            profile start date (<span id="past-modal-start-date"></span>) up to
+            yesterday.
+          </p>
+          <p style="font-style: italic; font-size: 0.9em">
+            Days with existing data in the sheet will be skipped.
+          </p>
+          <div id="past-data-list">
+            <!-- Input fields will be generated here by JS -->
+          </div>
+          <button id="submit-past-data-btn" class="success">
+            Submit Past Data
+          </button>
+          <p
+            id="past-data-submit-status"
+            style="margin-top: 10px; font-style: italic"
+          ></p>
+        </div>
+      </div>
+
+      <!-- Delete Confirmation Modal -->
+      <div id="delete-confirm-modal" class="modal">
+        <div class="modal-content">
+          <span class="modal-close" id="close-delete-modal">&times;</span>
+          <h3>Confirm Deletion</h3>
+          <p>
+            Are you sure you want to permanently delete the profile "<strong
+              id="delete-profile-name"
+            ></strong
+            >"? This will also delete all associated trading data.
+          </p>
+          <div class="form-group">
+            <label for="delete-password">Enter Password to Confirm:</label>
+            <input type="password" id="delete-password" required />
+          </div>
+          <button id="confirm-delete-btn" class="danger">
+            Confirm Deletion
+          </button>
+          <button id="cancel-delete-btn" class="secondary">Cancel</button>
+          <p
+            id="delete-confirm-status"
+            style="margin-top: 10px; font-style: italic; color: red"
+          ></p>
+        </div>
+      </div>
+    </div>
+    <!-- /container -->
+
+    <footer>Simple Trading Journal & Progress Tracker</footer>
+
+    <script>
+      // --- Start JavaScript ---
+      document.addEventListener("DOMContentLoaded", () => {
+        // --- CONFIGURATION ---
+        const GAS_URL =
+          "https://script.google.com/macros/s/AKfycbxtU7DTzLzVzAgHdd3c7EYDDwmSt8mYUxa-Asv8fqaG3xpJSmK4QAGJMlKcZcA_VSQk/exec"; // Your Deployed URL
+
+        // --- State Variables ---
+        let currentView = "profile-list-view"; // Tracks the active view
+        let currentProfileId = null; // ID of the profile being viewed/edited
+        let currentProfileData = null; // Holds {profileInfo, dailyHistory, calculatedInitial}
+        let todayTrades = []; // Array to hold P/L of trades added *today* [{ pl: number }, ...]
+        let liveChartInstances = { weekly: null, monthly: null, overall: null }; // Chart.js instances
+        let profileToDelete = { id: null, name: null }; // For delete confirmation modal
+
+        // --- DOM Elements ---
+        const views = {
+          list: document.getElementById("profile-list-view"),
+          detail: document.getElementById("profile-detail-view"),
+        };
+        const messageContent = document.getElementById("message-content");
+        const messageArea = document.getElementById("message-area");
+
+        // Profile List View Elements
+        const profileListUl = document.getElementById("profile-list");
+        const showCreateProfileBtn = document.getElementById(
+          "show-create-profile-btn"
+        );
+        const createProfileSection = document.getElementById(
+          "create-profile-section"
+        );
+        const submitCreateProfileBtn = document.getElementById(
+          "submit-create-profile-btn"
+        );
+        const cancelCreateProfileBtn = document.getElementById(
+          "cancel-create-profile-btn"
+        );
+        const newProfileNameInput = document.getElementById("new-profile-name");
+        const newInitialPrincipalInput = document.getElementById(
+          "new-initial-principal"
+        );
+        const newDailyRateInput = document.getElementById("new-daily-rate");
+        const newStartDateInput = document.getElementById("new-start-date");
+        const newPeriodDaysInput = document.getElementById("new-period-days");
+
+        // Profile Detail View Elements
+        const backToListBtn = document.getElementById("back-to-list-btn");
+        const detailProfileNameH2 = document.getElementById(
+          "detail-profile-name"
+        );
+        // Dashboard Elements
+        const dbStartDate = document.getElementById("db-start-date");
+        const dbEndDate = document.getElementById("db-end-date");
+        const dbStartPrincipal = document.getElementById("db-start-principal");
+        const dbCurrentBalance = document.getElementById("db-current-balance");
+        const dbCumulativePl = document.getElementById("db-cumulative-pl");
+        const dbCurrentDayNumber = document.getElementById(
+          "db-current-day-number"
+        );
+        const dbTotalPeriodDays = document.getElementById(
+          "db-total-period-days"
+        );
+        const dbTodayDate = document.getElementById("db-today-date");
+        const dbTodayOpenBalance = document.getElementById(
+          "db-today-open-balance"
+        );
+        const dbTargetToday = document.getElementById("db-target-today");
+        const dbTargetEndBalanceToday = document.getElementById(
+          "db-target-end-balance-today"
+        );
+        const dbTodayDateActual = document.getElementById(
+          "db-today-date-actual"
+        );
+        const dbActualPlToday = document.getElementById("db-actual-pl-today");
+        const dbTradesToday = document.getElementById("db-trades-today");
+        const dbWinRatioToday = document.getElementById("db-win-ratio-today");
+        const dbDayStatus = document.getElementById("db-day-status");
+        const dbCompTargetBalance = document.getElementById(
+          "db-comp-target-balance"
+        );
+        const dbOverallStatus = document.getElementById("db-overall-status");
+        const dbPeriodStatus = document.getElementById("db-period-status");
+        // Trader Input Elements
+        const traderInputArea = document.getElementById("trader-input-area");
+        const traderInputDate = document.getElementById("trader-input-date");
+        const tradePlInput = document.getElementById("trade-pl");
+        const addTradeBtn = document.getElementById("add-trade-btn");
+        const liveCumulativePlSpan =
+          document.getElementById("live-cumulative-pl");
+        const liveTradeCountSpan = document.getElementById("live-trade-count");
+        const liveWinCountSpan = document.getElementById("live-win-count");
+        const liveLossCountSpan = document.getElementById("live-loss-count");
+        const liveWinPercentageSpan = document.getElementById(
+          "live-win-percentage"
+        );
+        const finalizeDayBtn = document.getElementById("finalize-day-btn");
+        const finalizeStatusP = document.getElementById("finalize-status");
+        // Chart Elements
+        const chartButtons = document.querySelector(".chart-buttons");
+        const weeklyChartContainer = document.getElementById(
+          "weekly-chart-container"
+        );
+        const monthlyChartContainer = document.getElementById(
+          "monthly-chart-container"
+        );
+        const overallChartContainer = document.getElementById(
+          "overall-chart-container"
+        );
+        const chartCanvases = {
+          weekly: document.getElementById("weeklyChart"),
+          monthly: document.getElementById("monthlyChart"),
+          overall: document.getElementById("overallChart"),
+        };
+
+        // Modal Elements
+        const pastDataModal = document.getElementById("past-data-modal");
+        const closePastDataModal = document.getElementById(
+          "close-past-data-modal"
+        );
+        const pastModalStartDate = document.getElementById(
+          "past-modal-start-date"
+        );
+        const pastDataListDiv = document.getElementById("past-data-list");
+        const submitPastDataBtn = document.getElementById(
+          "submit-past-data-btn"
+        );
+        const pastDataSubmitStatus = document.getElementById(
+          "past-data-submit-status"
+        );
+
+        const deleteConfirmModal = document.getElementById(
+          "delete-confirm-modal"
+        );
+        const closeDeleteModal = document.getElementById("close-delete-modal");
+        const deleteProfileNameSpan = document.getElementById(
+          "delete-profile-name"
+        );
+        const deletePasswordInput = document.getElementById("delete-password");
+        const confirmDeleteBtn = document.getElementById("confirm-delete-btn");
+        const cancelDeleteBtn = document.getElementById("cancel-delete-btn");
+        const deleteConfirmStatus = document.getElementById(
+          "delete-confirm-status"
+        );
+
+        // --- Utility Functions ---
+        function showMessage(type, text) {
+          messageContent.className = `message ${type}`; // Add type class
+          messageContent.textContent = text;
+          messageArea.style.display = "block"; // Ensure area is visible
+          if (type !== "loading") {
+            // Auto-hide non-loading messages after 5 seconds
+            setTimeout(hideMessage, 5000);
+          }
+        }
+
+        function hideMessage() {
+          messageContent.className = "message"; // Remove type class
+          messageContent.textContent = "";
+          // Do not hide the messageArea itself, just clear content/class
+        }
+
+        function switchView(viewId) {
+          Object.values(views).forEach((view) =>
+            view.classList.remove("active")
+          );
+          if (views[viewId]) {
+            views[viewId].classList.add("active");
+            currentView = viewId;
+          } else {
+            console.error("View not found:", viewId);
+            views.list.classList.add("active"); // Default to list view on error
+            currentView = "list";
+          }
+          hideMessage(); // Clear messages on view switch
+          window.scrollTo(0, 0); // Scroll to top
+        }
+
+        // --- API Call Functions ---
+        async function fetchData(action, params = {}) {
+          showMessage("loading", "Loading data...");
+          const url = new URL(GAS_URL);
+          url.searchParams.append("action", action);
+          for (const key in params) {
+            url.searchParams.append(key, params[key]);
+          }
+
+          try {
+            const response = await fetch(url, {
+              method: "GET",
+              redirect: "follow",
+            });
+            if (!response.ok)
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+            hideMessage();
+            return data;
+          } catch (error) {
+            console.error(`Fetch Error (${action}):`, error);
+            showMessage("error", `Failed to load data: ${error.message}`);
+            throw error;
+          }
+        }
+
+        async function postData(action, payload = {}) {
+          showMessage("loading", "Submitting data...");
+          payload.action = action;
+
+          try {
+            const response = await fetch(GAS_URL, {
+              method: "POST",
+              mode: "cors",
+              cache: "no-cache",
+              headers: { "Content-Type": "text/plain;charset=utf-8" },
+              body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+              // Checks for 2xx status codes
+              let errorMsg = `Request failed! Status: ${response.status}`;
+              try {
+                const errorData = await response.json(); // Try to parse error JSON from GAS
+                errorMsg = `Error: ${
+                  errorData.error || JSON.stringify(errorData)
+                }`;
+              } catch (e) {
+                /* Ignore if parsing fails */
+              }
+              throw new Error(errorMsg);
+            }
+            const data = await response.json(); // Try to parse JSON response from GAS
+            if (data.error) throw new Error(data.error); // Handle application-level errors from GAS
+            // Don't hide message here, let caller handle success message
+            return data;
+          } catch (error) {
+            console.error(`Post Error (${action}):`, error);
+            showMessage("error", `Failed to submit data: ${error.message}`);
+            throw error;
+          }
+        }
+
+        // --- Profile List Logic ---
+        async function loadProfileList() {
+          try {
+            const data = await fetchData("listProfiles");
+            profileListUl.innerHTML = ""; // Clear loading/existing list
+            if (data.profiles && data.profiles.length > 0) {
+              data.profiles.forEach((profile) => {
+                const li = document.createElement("li");
+                const nameSpan = document.createElement("span");
+                nameSpan.textContent = profile.profileName;
+                nameSpan.dataset.profileId = profile.profileId; // Store ID for click handling
+                nameSpan.title = `View details for ${profile.profileName}`;
+                nameSpan.onclick = () => loadProfileDetail(profile.profileId); // Load detail on click
+
+                const actionsDiv = document.createElement("div");
+                actionsDiv.className = "profile-actions";
+
+                const deleteBtn = document.createElement("button");
+                deleteBtn.textContent = "Delete";
+                deleteBtn.className = "danger small";
+                deleteBtn.onclick = (e) => {
+                  e.stopPropagation(); // Prevent li click event
+                  openDeleteConfirmModal(
+                    profile.profileId,
+                    profile.profileName
+                  );
+                };
+
+                actionsDiv.appendChild(deleteBtn);
+                li.appendChild(nameSpan);
+                li.appendChild(actionsDiv);
+                profileListUl.appendChild(li);
+              });
+            } else {
+              profileListUl.innerHTML =
+                "<li>No profiles found. Create one below!</li>";
+            }
+          } catch (error) {
+            profileListUl.innerHTML =
+              "<li>Error loading profiles. Please try again.</li>";
+            // Error message handled by fetchData
+          }
+        }
+
+        function toggleCreateProfileForm(show) {
+          createProfileSection.style.display = show ? "block" : "none";
+          if (show) {
+            // Clear form
+            newProfileNameInput.value = "";
+            newInitialPrincipalInput.value = "";
+            newDailyRateInput.value = "";
+            newStartDateInput.value = "";
+            newPeriodDaysInput.value = "";
+            showCreateProfileBtn.style.display = "none"; // Hide 'Add' button when form is visible
+          } else {
+            showCreateProfileBtn.style.display = "inline-block"; // Show 'Add' button
+          }
+        }
+
+        async function handleCreateProfile() {
+          // Basic Validation
+          const name = newProfileNameInput.value.trim();
+          const principal = newInitialPrincipalInput.value;
+          const rate = newDailyRateInput.value;
+          const startDate = newStartDateInput.value; // YYYY-MM-DD
+          const period = newPeriodDaysInput.value;
+
+          if (!name || !principal || !rate || !startDate || !period) {
+            showMessage("error", "Please fill in all profile fields.");
+            return;
+          }
+          if (
+            parseFloat(principal) <= 0 ||
+            parseInt(period) <= 0 ||
+            parseFloat(rate) < 0
+          ) {
+            showMessage(
+              "error",
+              "Principal and Period must be positive. Daily rate cannot be negative."
+            );
+            return;
+          }
+
+          try {
+            const profileData = {
+              profileName: name,
+              initialPrincipal: principal,
+              dailyInterestRatePercent: rate,
+              startDate: startDate,
+              tradingPeriodDays: period,
+            };
+            const result = await postData("createProfile", profileData);
+            if (result.success) {
+              showMessage(
+                "success",
+                `Profile "${result.profileName}" created!`
+              );
+              toggleCreateProfileForm(false);
+              await loadProfileList(); // Refresh list
+
+              // Check if past data entry is needed
+              if (result.needsPastData) {
+                promptForPastData(result.profileId, result.startDate);
+              } else {
+                // Optionally navigate to the new profile's detail view
+                // loadProfileDetail(result.profileId);
+              }
+            } else {
+              // Error handled by postData
+              showMessage("error", result.error || "Failed to create profile.");
+            }
+          } catch (error) {
+            // Error handled by postData or fetch wrapper
+          }
+        }
+
+        // --- Profile Deletion Logic ---
+        function openDeleteConfirmModal(profileId, profileName) {
+          profileToDelete = { id: profileId, name: profileName };
+          deleteProfileNameSpan.textContent = profileName;
+          deletePasswordInput.value = ""; // Clear password field
+          deleteConfirmStatus.textContent = ""; // Clear status message
+          deleteConfirmModal.style.display = "block";
+        }
+
+        function closeDeleteConfirmModal() {
+          deleteConfirmModal.style.display = "none";
+          profileToDelete = { id: null, name: null };
+        }
+
+        async function handleDeleteProfileConfirm() {
+          const password = deletePasswordInput.value;
+          if (!password) {
+            deleteConfirmStatus.textContent = "Password is required.";
+            return;
+          }
+          if (!profileToDelete.id) return; // Should not happen
+
+          deleteConfirmStatus.textContent = "Deleting...";
+          confirmDeleteBtn.disabled = true;
+          cancelDeleteBtn.disabled = true;
+
+          try {
+            const result = await postData("deleteProfile", {
+              profileId: profileToDelete.id,
+              password: password,
+            });
+            if (result.success) {
+              showMessage(
+                "success",
+                `Profile "${profileToDelete.name}" deleted successfully.`
+              );
+              closeDeleteConfirmModal();
+              await loadProfileList(); // Refresh the list
+            } else {
+              // Error handled by postData, show it in modal status
+              deleteConfirmStatus.textContent = `Error: ${
+                result.error || "Deletion failed."
+              }`;
+            }
+          } catch (error) {
+            deleteConfirmStatus.textContent = `Error: ${error.message}`;
+          } finally {
+            confirmDeleteBtn.disabled = false;
+            cancelDeleteBtn.disabled = false;
+          }
+        }
+
+        // --- Past Data Entry Logic ---
+        function promptForPastData(profileId, startDateStr) {
+          // Calculate dates from startDate up to yesterday
+          const datesToEnter = [];
+          const startDate = new Date(startDateStr + "T00:00:00Z"); // Use UTC
+          const today = new Date();
+          const yesterday = new Date(
+            Date.UTC(
+              today.getUTCFullYear(),
+              today.getUTCMonth(),
+              today.getUTCDate() - 1
+            )
+          );
+
+          let currentDate = new Date(startDate);
+
+          while (currentDate <= yesterday) {
+            const dateString = currentDate.toISOString().slice(0, 10); // YYYY-MM-DD
+            // Simple check for weekend (Sat=6, Sun=0 in UTC) - adjust if trading non-weekdays
+            // const dayOfWeek = currentDate.getUTCDay();
+            // if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            datesToEnter.push(dateString);
+            // }
+            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+          }
+
+          if (datesToEnter.length === 0) {
+            showMessage(
+              "info",
+              "Start date is not in the past, no past data entry needed."
+            );
+            return;
+          }
+
+          // Populate and show the modal
+          pastModalStartDate.textContent = startDateStr;
+          pastDataListDiv.innerHTML = ""; // Clear previous entries
+          datesToEnter.forEach((date) => {
+            const entryDiv = document.createElement("div");
+            entryDiv.className = "past-day-entry";
+            entryDiv.innerHTML = `
+                         <label for="past-pl-${date}">${date}:</label>
+                         <input type="number" id="past-pl-${date}" data-date="${date}" step="0.01" placeholder="Daily P/L">
+                     `;
+            pastDataListDiv.appendChild(entryDiv);
+          });
+
+          pastDataSubmitStatus.textContent = ""; // Clear status
+          pastDataModal.style.display = "block";
+
+          // Store profileId for submission handler
+          submitPastDataBtn.dataset.profileId = profileId;
+        }
+
+        function closePastDataModal() {
+          pastDataModal.style.display = "none";
+        }
+
+        async function handleSubmitPastData() {
+          const profileId = submitPastDataBtn.dataset.profileId;
+          if (!profileId) return;
+
+          const pastEntries = [];
+          const inputs = pastDataListDiv.querySelectorAll(
+            'input[type="number"]'
+          );
+          let isValid = true;
+          inputs.forEach((input) => {
+            const date = input.dataset.date;
+            const plValue = input.value.trim();
+            // Only include entries where P/L was actually entered
+            if (plValue !== "") {
+              if (isNaN(parseFloat(plValue))) {
+                isValid = false;
+                input.style.borderColor = "red"; // Highlight invalid input
+              } else {
+                input.style.borderColor = ""; // Reset border
+                pastEntries.push({ date: date, pl: parseFloat(plValue) });
+              }
+            } else {
+              input.style.borderColor = ""; // Reset border if empty (optional entry)
+            }
+          });
+
+          if (!isValid) {
+            pastDataSubmitStatus.textContent =
+              "Please enter valid numbers for P/L.";
+            pastDataSubmitStatus.style.color = "red";
+            return;
+          }
+
+          if (pastEntries.length === 0) {
+            pastDataSubmitStatus.textContent = "No P/L values entered.";
+            pastDataSubmitStatus.style.color = "orange";
+            return;
+          }
+
+          pastDataSubmitStatus.textContent = "Submitting...";
+          pastDataSubmitStatus.style.color = "black";
+          submitPastDataBtn.disabled = true;
+
+          try {
+            const result = await postData("savePastData", {
+              profileId: profileId,
+              pastEntries: pastEntries,
+            });
+            if (result.success) {
+              showMessage("success", "Past data saved successfully!");
+              closePastDataModal();
+              // Optionally, reload profile detail view if currently viewing this profile
+              if (currentProfileId === profileId && currentView === "detail") {
+                await loadProfileDetail(profileId);
+              }
+            } else {
+              pastDataSubmitStatus.textContent = `Error: ${
+                result.error || "Failed to save."
+              }`;
+              pastDataSubmitStatus.style.color = "red";
+            }
+          } catch (error) {
+            pastDataSubmitStatus.textContent = `Error: ${error.message}`;
+            pastDataSubmitStatus.style.color = "red";
+          } finally {
+            submitPastDataBtn.disabled = false;
+          }
+        }
+
+        // --- Profile Detail Logic ---
+        async function loadProfileDetail(profileId) {
+          if (!profileId) return;
+          currentProfileId = profileId;
+          switchView("detail");
+          showMessage("loading", `Loading profile ${profileId}...`);
+          destroyCharts(); // Clear previous charts
+
+          try {
+            const data = await fetchData("getProfileDetail", {
+              profileId: profileId,
+            });
+            currentProfileData = data; // Store fetched data
+            todayTrades = []; // Reset live trades for the day
+            updateDashboardUI();
+            updateTraderInputUI();
+            initializeCharts(); // Create new charts with fetched data
+            hideMessage(); // Clear loading message
+          } catch (error) {
+            showMessage(
+              "error",
+              `Failed to load profile details: ${error.message}`
+            );
+            // Optionally switch back to list view or show error in detail view
+            switchView("list");
+          }
+        }
+
+        function updateDashboardUI() {
+          if (!currentProfileData) return;
+          const { profileInfo, calculatedInitial } = currentProfileData;
+
+          detailProfileNameH2.textContent = profileInfo.profileName;
+
+          // Dates and Static Info
+          dbStartDate.textContent = profileInfo.startDate || "--";
+          dbEndDate.textContent = calculatedInitial.endDate || "--";
+          dbStartPrincipal.textContent =
+            calculatedInitial.startPrincipal || "--";
+          dbTotalPeriodDays.textContent = profileInfo.periodDays || "--";
+          dbCurrentDayNumber.textContent =
+            calculatedInitial.lastFinalizedDayNumber > 0
+              ? calculatedInitial.lastFinalizedDayNumber
+              : calculatedInitial.isFinalizedToday
+              ? 1
+              : isDateAfter(calculatedInitial.today, profileInfo.startDate)
+              ? 1
+              : 0; // Estimate current day
+          dbTodayDate.textContent = calculatedInitial.today || "--";
+          dbTodayDateActual.textContent = calculatedInitial.today || "--";
+
+          // Balances & P/L (based on FINALIZED data initially)
+          dbTodayOpenBalance.textContent =
+            calculatedInitial.lastClosingBalance ||
+            profileInfo.initialPrincipal.toFixed(2);
+          dbTargetToday.textContent =
+            calculatedInitial.targetProfitToday || "--";
+          // Target end balance is OPENING + TARGET PROFIT
+          dbTargetEndBalanceToday.textContent = (
+            parseFloat(
+              calculatedInitial.lastClosingBalance ||
+                profileInfo.initialPrincipal
+            ) + parseFloat(calculatedInitial.targetProfitToday || 0)
+          ).toFixed(2);
+
+          // Initial display uses finalized data. Live updates modify this.
+          updateLiveDashboardValues(); // Call this to set initial live values and statuses
+
+          // Overall Progress
+          dbCompTargetBalance.textContent =
+            calculatedInitial.targetEndOfDayBalance || "--";
+          dbPeriodStatus.textContent = calculatedInitial.isTradingPeriodComplete
+            ? "Completed"
+            : "Ongoing";
+          dbPeriodStatus.className = `status-indicator ${
+            calculatedInitial.isTradingPeriodComplete
+              ? "status-complete"
+              : "status-ontarget"
+          }`;
+        }
+
+        function updateLiveDashboardValues() {
+          if (!currentProfileData || !currentProfileData.calculatedInitial)
+            return;
+
+          const { calculatedInitial, profileInfo } = currentProfileData;
+          const lastClosing = parseFloat(
+            calculatedInitial.lastClosingBalance || profileInfo.initialPrincipal
+          );
+          const targetProfitForToday = parseFloat(
+            calculatedInitial.targetProfitToday || 0
+          );
+          const targetEndOfDayCompounded = parseFloat(
+            calculatedInitial.targetEndOfDayBalance || 0
+          );
+
+          // Calculate live values based on todayTrades array
+          const livePL = todayTrades.reduce((sum, trade) => sum + trade.pl, 0);
+          const liveTradeCount = todayTrades.length;
+          const liveWinCount = todayTrades.filter(
+            (trade) => trade.pl > 0
+          ).length;
+
+          // Update UI elements reflecting LIVE data for today
+          dbActualPlToday.textContent = livePL.toFixed(2);
+          dbTradesToday.textContent = liveTradeCount;
+          dbWinRatioToday.textContent =
+            liveTradeCount > 0
+              ? ((liveWinCount / liveTradeCount) * 100).toFixed(1) + "%"
+              : "N/A";
+
+          // Update Current Balance (Live)
+          const currentLiveBalance = lastClosing + livePL;
+          dbCurrentBalance.textContent = currentLiveBalance.toFixed(2);
+
+          // Update Cumulative P/L (Live)
+          const currentLiveCumulativePL =
+            currentLiveBalance - profileInfo.initialPrincipal;
+          dbCumulativePl.textContent = currentLiveCumulativePL.toFixed(2);
+
+          // --- Update Status Indicators (Live) ---
+          // Today's Status (Live P/L vs Target P/L for today)
+          if (calculatedInitial.isFinalizedToday) {
+            dbDayStatus.textContent = "Finalized";
+            dbDayStatus.className = "status-indicator status-complete";
+          } else if (liveTradeCount === 0) {
+            dbDayStatus.textContent = "Awaiting Trades";
+            dbDayStatus.className = "status-indicator status-awaiting";
+          } else if (livePL >= targetProfitForToday) {
+            dbDayStatus.textContent = "Target Met";
+            dbDayStatus.className = "status-indicator status-ahead";
+          } else {
+            dbDayStatus.textContent = `Target Not Met ($${(
+              targetProfitForToday - livePL
+            ).toFixed(2)} short)`;
+            dbDayStatus.className = "status-indicator status-behind";
+          }
+
+          // Overall Status (Live Balance vs Compounded Target Balance for end of today)
+          const differenceOverall =
+            currentLiveBalance - targetEndOfDayCompounded;
+          if (calculatedInitial.isTradingPeriodComplete) {
+            dbOverallStatus.textContent = `Period Ended`;
+            dbOverallStatus.className = "status-indicator status-complete";
+          } else if (differenceOverall >= 0) {
+            dbOverallStatus.textContent = `Ahead by $${differenceOverall.toFixed(
+              2
+            )}`;
+            dbOverallStatus.className = "status-indicator status-ahead";
+          } else {
+            dbOverallStatus.textContent = `Behind by $${Math.abs(
+              differenceOverall
+            ).toFixed(2)}`;
+            dbOverallStatus.className = "status-indicator status-behind";
+          }
+        }
+
+        // --- Trader Input Logic ---
+        function updateTraderInputUI() {
+          if (!currentProfileData || !currentProfileData.calculatedInitial) {
+            traderInputArea.style.display = "none";
+            return;
+          }
+          const { calculatedInitial } = currentProfileData;
+
+          traderInputDate.textContent = calculatedInitial.today || "--";
+          finalizeStatusP.textContent = ""; // Clear status
+          tradePlInput.value = ""; // Clear input field
+
+          // Disable input if today is finalized or period is complete
+          const isDisabled =
+            calculatedInitial.isFinalizedToday ||
+            calculatedInitial.isTradingPeriodComplete;
+          tradePlInput.disabled = isDisabled;
+          addTradeBtn.disabled = isDisabled;
+          finalizeDayBtn.disabled = isDisabled;
+
+          if (calculatedInitial.isFinalizedToday) {
+            finalizeStatusP.textContent = `Day ${calculatedInitial.today} has been finalized.`;
+            finalizeStatusP.style.color = "green";
+            traderInputArea.style.opacity = "0.7"; // Dim the area
+          } else if (calculatedInitial.isTradingPeriodComplete) {
+            finalizeStatusP.textContent = "Trading period is complete.";
+            finalizeStatusP.style.color = "blue";
+            traderInputArea.style.opacity = "0.7";
+          } else {
+            finalizeStatusP.textContent = "";
+            traderInputArea.style.opacity = "1";
+          }
+
+          // Update the live summary section
+          updateLiveTradeSummary();
+        }
+
+        function handleAddTrade() {
+          const plValueStr = tradePlInput.value;
+          if (plValueStr === "") return; // Ignore empty input
+
+          const plValue = parseFloat(plValueStr);
+          if (isNaN(plValue)) {
+            showMessage(
+              "error",
+              "Please enter a valid number for the trade P/L."
+            );
+            return;
+          }
+
+          // Add trade to temporary state
+          todayTrades.push({ pl: plValue });
+
+          // Update UI
+          tradePlInput.value = ""; // Clear input
+          updateLiveTradeSummary();
+          updateLiveDashboardValues(); // Update dashboard with new live totals
+          hideMessage(); // Clear any previous error message
+        }
+
+        function updateLiveTradeSummary() {
+          const tradeCount = todayTrades.length;
+          const cumulativePL = todayTrades.reduce(
+            (sum, trade) => sum + trade.pl,
+            0
+          );
+          const winCount = todayTrades.filter((trade) => trade.pl > 0).length;
+          const lossCount = todayTrades.filter((trade) => trade.pl < 0).length; // Negative P/L are losses
+          const winPercentage =
+            tradeCount > 0
+              ? ((winCount / tradeCount) * 100).toFixed(1) + "%"
+              : "N/A";
+
+          liveCumulativePlSpan.textContent = cumulativePL.toFixed(2);
+          liveTradeCountSpan.textContent = tradeCount;
+          liveWinCountSpan.textContent = winCount;
+          liveLossCountSpan.textContent = lossCount;
+          liveWinPercentageSpan.textContent = winPercentage;
+        }
+
+        async function handleFinalizeDay() {
+          if (
+            !currentProfileId ||
+            !currentProfileData ||
+            !currentProfileData.calculatedInitial
+          )
+            return;
+          const { calculatedInitial } = currentProfileData;
+
+          if (
+            calculatedInitial.isFinalizedToday ||
+            calculatedInitial.isTradingPeriodComplete
+          ) {
+            finalizeStatusP.textContent =
+              "Cannot finalize: Day already finalized or period complete.";
+            finalizeStatusP.style.color = "orange";
+            return;
+          }
+
+          const finalPL = todayTrades.reduce((sum, trade) => sum + trade.pl, 0);
+          const finalTradeCount = todayTrades.length;
+          const finalWinCount = todayTrades.filter(
+            (trade) => trade.pl > 0
+          ).length;
+
+          // Optional: Confirm before finalizing?
+          // const confirmFinalize = confirm(`Finalize Day ${calculatedInitial.today} with P/L: $${finalPL.toFixed(2)}, Trades: ${finalTradeCount}, Wins: ${finalWinCount}?`);
+          // if (!confirmFinalize) return;
+
+          finalizeStatusP.textContent = "Finalizing day...";
+          finalizeStatusP.style.color = "black";
+          finalizeDayBtn.disabled = true;
+          addTradeBtn.disabled = true;
+          tradePlInput.disabled = true;
+
+          try {
+            const result = await postData("saveDailyPnl", {
+              profileId: currentProfileId,
+              date: calculatedInitial.today, // Send the date being finalized
+              cumulativePL: finalPL,
+              tradeCount: finalTradeCount,
+              winCount: finalWinCount,
+            });
+
+            if (result.success) {
+              finalizeStatusP.textContent = `Day ${calculatedInitial.today} finalized successfully!`;
+              finalizeStatusP.style.color = "green";
+              // Refresh the profile data to get the updated 'finalized' state and history
+              await loadProfileDetail(currentProfileId);
+            } else {
+              finalizeStatusP.textContent = `Error: ${
+                result.error || "Failed to finalize."
+              }`;
+              finalizeStatusP.style.color = "red";
+              // Re-enable buttons on failure
+              finalizeDayBtn.disabled = false;
+              addTradeBtn.disabled = false;
+              tradePlInput.disabled = false;
+            }
+          } catch (error) {
+            finalizeStatusP.textContent = `Error: ${error.message}`;
+            finalizeStatusP.style.color = "red";
+            // Re-enable buttons on failure
+            finalizeDayBtn.disabled = false;
+            addTradeBtn.disabled = false;
+            tradePlInput.disabled = false;
+          }
+        }
+
+        // --- Chart Logic ---
+        function destroyCharts() {
+          Object.values(liveChartInstances).forEach((chart) => {
+            if (chart) chart.destroy();
+          });
+          liveChartInstances = { weekly: null, monthly: null, overall: null };
+        }
+
+        function initializeCharts() {
+          if (!currentProfileData || !currentProfileData.dailyHistory) return;
+
+          // Prepare data (can be moved to separate functions later)
+          const history = currentProfileData.dailyHistory; // Already sorted by date ASC
+          const profileInfo = currentProfileData.profileInfo;
+
+          // --- Weekly Chart Data ---
+          const { weeklyLabels, weeklyTargetData, weeklyActualData } =
+            prepareWeeklyData(history);
+          liveChartInstances.weekly = createBarChart(
+            chartCanvases.weekly,
+            weeklyLabels,
+            weeklyTargetData,
+            weeklyActualData,
+            "Daily Target P/L",
+            "Actual Daily P/L",
+            "This Week: Target vs Actual P/L"
+          );
+
+          // --- Monthly Chart Data ---
+          const { monthlyLabels, monthlyTargetData, monthlyActualData } =
+            prepareMonthlyData(history);
+          liveChartInstances.monthly = createBarChart(
+            chartCanvases.monthly,
+            monthlyLabels,
+            monthlyTargetData,
+            monthlyActualData,
+            "Weekly Target P/L",
+            "Actual Weekly P/L",
+            "This Month: Weekly Target vs Actual P/L"
+          );
+
+          // --- Overall Chart Data ---
+          const {
+            overallLabels,
+            overallTargetBalanceData,
+            overallActualBalanceData,
+          } = prepareOverallData(history, profileInfo);
+          liveChartInstances.overall = createLineChart(
+            chartCanvases.overall,
+            overallLabels,
+            overallTargetBalanceData,
+            overallActualBalanceData,
+            "Target Balance",
+            "Actual Balance",
+            "Overall: Target vs Actual Balance"
+          );
+
+          // Set initial active chart (e.g., weekly)
+          setActiveChart("weekly");
+        }
+
+        function createBarChart(
+          canvas,
+          labels,
+          data1,
+          data2,
+          label1,
+          label2,
+          title
+        ) {
+          if (!canvas) return null;
+          const ctx = canvas.getContext("2d");
+          return new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: label1,
+                  data: data1,
+                  backgroundColor: "rgba(54, 162, 235, 0.6)", // Blue
+                  borderColor: "rgba(54, 162, 235, 1)",
+                  borderWidth: 1,
+                },
+                {
+                  label: label2,
+                  data: data2,
+                  backgroundColor: "rgba(75, 192, 192, 0.6)", // Green
+                  borderColor: "rgba(75, 192, 192, 1)",
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false, // Allow chart to fill container height
+              plugins: {
+                title: { display: true, text: title, font: { size: 16 } },
+              },
+              scales: {
+                y: {
+                  beginAtZero: false, // Allow negative P/L display
+                  ticks: { callback: (value) => "$" + value.toFixed(0) }, // Format Y-axis as currency
+                },
+                x: { ticks: { maxRotation: 0, minRotation: 0 } }, // Prevent label rotation if possible
+              },
+            },
+          });
+        }
+
+        function createLineChart(
+          canvas,
+          labels,
+          data1,
+          data2,
+          label1,
+          label2,
+          title
+        ) {
+          if (!canvas) return null;
+          const ctx = canvas.getContext("2d");
+          return new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: labels, // These should be dates
+              datasets: [
+                {
+                  label: label1, // Target Balance
+                  data: data1,
+                  borderColor: "rgba(255, 99, 132, 1)", // Red
+                  backgroundColor: "rgba(255, 99, 132, 0.1)",
+                  tension: 0.1,
+                  pointRadius: 2,
+                  fill: false,
+                },
+                {
+                  label: label2, // Actual Balance
+                  data: data2,
+                  borderColor: "rgba(54, 162, 235, 1)", // Blue
+                  backgroundColor: "rgba(54, 162, 235, 0.1)",
+                  tension: 0.1,
+                  pointRadius: 2,
+                  fill: false,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                title: { display: true, text: title, font: { size: 16 } },
+              },
+              scales: {
+                y: {
+                  beginAtZero: false,
+                  ticks: { callback: (value) => "$" + value.toFixed(0) },
+                },
+                x: {
+                  type: "time", // Use time scale for dates
+                  time: { unit: "day", tooltipFormat: "yyyy-MM-dd" },
+                  ticks: { source: "auto", maxRotation: 45, minRotation: 0 },
+                },
+              },
+            },
+          });
+        }
+
+        function setActiveChart(chartType) {
+          // Hide all containers
+          weeklyChartContainer.classList.remove("active");
+          monthlyChartContainer.classList.remove("active");
+          overallChartContainer.classList.remove("active");
+          // Deactivate all buttons
+          document
+            .getElementById("show-weekly-chart-btn")
+            .classList.remove("active");
+          document
+            .getElementById("show-monthly-chart-btn")
+            .classList.remove("active");
+          document
+            .getElementById("show-overall-chart-btn")
+            .classList.remove("active");
+
+          // Show the selected one
+          if (chartType === "weekly") {
+            weeklyChartContainer.classList.add("active");
+            document
+              .getElementById("show-weekly-chart-btn")
+              .classList.add("active");
+          } else if (chartType === "monthly") {
+            monthlyChartContainer.classList.add("active");
+            document
+              .getElementById("show-monthly-chart-btn")
+              .classList.add("active");
+          } else if (chartType === "overall") {
+            overallChartContainer.classList.add("active");
+            document
+              .getElementById("show-overall-chart-btn")
+              .classList.add("active");
+          }
+        }
+
+        // --- Chart Data Preparation Helpers ---
+        function prepareWeeklyData(history) {
+          const today = new Date();
+          const startOfWeek = getStartOfWeek(today); // Get Monday of the current week
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6); // Get Sunday
+
+          const weeklyHistory = history.filter((day) => {
+            const dayDate = new Date(day.date + "T00:00:00Z"); // Use UTC
+            return dayDate >= startOfWeek && dayDate <= endOfWeek;
+          });
+
+          // Ensure days Mon-Fri are present, even if no data, for consistent chart labels
+          const labels = [];
+          const targetData = [];
+          const actualData = [];
+          const daysMap = weeklyHistory.reduce((map, day) => {
+            map[day.date] = day;
+            return map;
+          }, {});
+
+          let currentDay = new Date(startOfWeek);
+          for (let i = 0; i < 7; i++) {
+            // Iterate through days of the week
+            const dateStr = currentDay.toISOString().slice(0, 10);
+            const dayOfWeek = currentDay.getUTCDay(); // 0=Sun, 1=Mon,... 6=Sat
+            // Only include weekdays (or adjust if needed)
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+              labels.push(dateStr.slice(5)); // MM-DD format
+              if (daysMap[dateStr]) {
+                targetData.push(parseFloat(daysMap[dateStr].targetProfit || 0));
+                actualData.push(parseFloat(daysMap[dateStr].actualPL || 0));
+              } else {
+                targetData.push(0); // No target/actual if no entry
+                actualData.push(0);
+              }
+            }
+            currentDay.setUTCDate(currentDay.getUTCDate() + 1); // Move to next day
+          }
+
+          // return { weeklyLabels: weeklyHistory.map(d => d.date.slice(5)), // MM-DD
+          //          weeklyTargetData: weeklyHistory.map(d => parseFloat(d.targetProfit || 0)),
+          //          weeklyActualData: weeklyHistory.map(d => parseFloat(d.actualPL || 0)) };
+          return {
+            weeklyLabels: labels,
+            weeklyTargetData: targetData,
+            weeklyActualData: actualData,
+          };
+        }
+
+        function prepareMonthlyData(history) {
+          const today = new Date();
+          const startOfMonth = new Date(
+            Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)
+          );
+          const endOfMonth = new Date(
+            Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)
+          ); // Last day of month
+
+          const monthlyHistory = history.filter((day) => {
+            const dayDate = new Date(day.date + "T00:00:00Z");
+            return dayDate >= startOfMonth && dayDate <= endOfMonth;
+          });
+
+          const weeklyAggregates = {}; // Key: YYYY-Www (e.g., 2023-W45)
+
+          monthlyHistory.forEach((day) => {
+            const date = new Date(day.date + "T00:00:00Z");
+            const weekKey = `${date.getUTCFullYear()}-W${getWeekNumber(date)}`;
+            if (!weeklyAggregates[weekKey]) {
+              weeklyAggregates[weekKey] = {
+                target: 0,
+                actual: 0,
+                weekNum: getWeekNumber(date),
+                year: date.getUTCFullYear(),
+              };
+            }
+            weeklyAggregates[weekKey].target += parseFloat(
+              day.targetProfit || 0
+            );
+            weeklyAggregates[weekKey].actual += parseFloat(day.actualPL || 0);
+          });
+
+          // Sort weeks
+          const sortedWeeks = Object.values(weeklyAggregates).sort((a, b) => {
+            if (a.year !== b.year) return a.year - b.year;
+            return a.weekNum - b.weekNum;
+          });
+
+          return {
+            monthlyLabels: sortedWeeks.map((w) => `Week ${w.weekNum}`),
+            monthlyTargetData: sortedWeeks.map((w) => w.target),
+            monthlyActualData: sortedWeeks.map((w) => w.actual),
+          };
+        }
+
+        function prepareOverallData(history, profileInfo) {
+          const labels = [];
+          const targetBalanceData = [];
+          const actualBalanceData = [];
+          let currentTargetBalance = parseFloat(profileInfo.initialPrincipal);
+
+          // Start point
+          labels.push(profileInfo.startDate); // Start date
+          targetBalanceData.push(parseFloat(profileInfo.initialPrincipal));
+          actualBalanceData.push(parseFloat(profileInfo.initialPrincipal));
+
+          let dayCounter = 0;
+          history.forEach((day) => {
+            dayCounter++;
+            labels.push(day.date);
+            // Calculate compounded target for this day
+            currentTargetBalance =
+              profileInfo.initialPrincipal *
+              Math.pow(1 + profileInfo.dailyRate / 100, dayCounter);
+
+            targetBalanceData.push(currentTargetBalance);
+            actualBalanceData.push(parseFloat(day.closingBalance));
+          });
+
+          return {
+            overallLabels: labels,
+            overallTargetBalanceData: targetBalanceData,
+            overallActualBalanceData: actualBalanceData,
+          };
+        }
+
+        // --- Date Helper Functions ---
+        function getStartOfWeek(d) {
+          // Returns Monday of the week containing date d (using UTC)
+          const date = new Date(
+            Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+          );
+          const day = date.getUTCDay(); // 0 = Sunday, 1 = Monday, ...
+          const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+          return new Date(date.setUTCDate(diff));
+        }
+
+        function getWeekNumber(d) {
+          // ISO 8601 week number
+          const date = new Date(
+            Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
+          );
+          date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7)); // Adjust to Thursday of the week
+          const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+          const weekNo = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+          return weekNo;
+        }
+
+        function isDateAfter(dateStr1, dateStr2) {
+          // Compares two 'YYYY-MM-DD' strings
+          return dateStr1 > dateStr2;
+        }
+
+        // --- Event Listeners ---
+        showCreateProfileBtn.addEventListener("click", () =>
+          toggleCreateProfileForm(true)
+        );
+        cancelCreateProfileBtn.addEventListener("click", () =>
+          toggleCreateProfileForm(false)
+        );
+        submitCreateProfileBtn.addEventListener("click", handleCreateProfile);
+        backToListBtn.addEventListener("click", () => switchView("list")); // Go back to list
+
+        // Delete Modal Listeners
+        confirmDeleteBtn.addEventListener("click", handleDeleteProfileConfirm);
+        cancelDeleteBtn.addEventListener("click", closeDeleteConfirmModal);
+        closeDeleteModal.addEventListener("click", closeDeleteConfirmModal);
+
+        // Past Data Modal Listeners
+        submitPastDataBtn.addEventListener("click", handleSubmitPastData);
+        closePastDataModal.addEventListener("click", closePastDataModal);
+
+        // Trader Input Listeners
+        addTradeBtn.addEventListener("click", handleAddTrade);
+        finalizeDayBtn.addEventListener("click", handleFinalizeDay);
+
+        // Chart View Listeners
+        chartButtons.addEventListener("click", (e) => {
+          if (e.target.tagName === "BUTTON") {
+            if (e.target.id === "show-weekly-chart-btn")
+              setActiveChart("weekly");
+            else if (e.target.id === "show-monthly-chart-btn")
+              setActiveChart("monthly");
+            else if (e.target.id === "show-overall-chart-btn")
+              setActiveChart("overall");
+          }
+        });
+
+        // Close modals if clicked outside content
+        window.onclick = function (event) {
+          if (event.target == pastDataModal) closePastDataModal();
+          if (event.target == deleteConfirmModal) closeDeleteConfirmModal();
+        };
+
+        // --- Initialisation ---
+        switchView("list"); // Start on the profile list view
+        loadProfileList(); // Load profiles when the page loads
+      }); // End DOMContentLoaded
+      // --- End JavaScript ---
+    </script>
+  </body>
+</html>
