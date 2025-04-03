@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trading Journal & Progress Tracker</title>
+    <!-- Include Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <style>
+      body {
+        font-family: sans-serif;
+        line-height: 1.6;
+        margin: 20px;
+        background-color: #f4f4f4;
+        color: #333;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+        background: #fff;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #0056b3; /* A blue theme */
+        margin-bottom: 15px;
+      }
+
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background-color 0.3s ease;
+        margin: 5px 0;
+      }
+
+      button:hover {
+        background-color: #0056b3;
+      }
+
+      button.delete-btn {
+        background-color: #dc3545;
+        margin-left: 10px;
+        padding: 5px 10px;
+        font-size: 0.8em;
+      }
+      button.delete-btn:hover {
+        background-color: #c82333;
+      }
+
+      button.cancel-btn {
+        background-color: #6c757d;
+      }
+      button.cancel-btn:hover {
+        background-color: #5a6268;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      textarea {
+        width: calc(100% - 22px); /* Account for padding */
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+
+      #profileList {
+        list-style: none;
+        padding: 0;
+      }
+
+      #profileList li {
+        background: #e9ecef;
+        margin-bottom: 10px;
+        padding: 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background-color 0.2s ease;
+      }
+
+      #profileList li:hover {
+        background: #ced4da;
+      }
+
+      #profileList li span {
+        flex-grow: 1;
+        margin-right: 10px;
+      }
+
+      #newProfileForm,
+      #profileDetail {
+        display: none; /* Hidden by default */
+        border: 1px solid #ddd;
+        padding: 20px;
+        margin-top: 20px;
+        border-radius: 5px;
+        background-color: #fdfdfd;
+      }
+
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .dashboard-item {
+        background: #eef;
+        padding: 15px;
+        border-radius: 5px;
+        border-left: 5px solid #007bff;
+      }
+      .dashboard-item strong {
+        display: block;
+        margin-bottom: 5px;
+        color: #0056b3;
+      }
+
+      .status-ahead {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .status-behind {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .status-ontarget {
+        color: #ffc107;
+        font-weight: bold;
+      } /* Orange for on target */
+
+      #chartContainer {
+        margin-top: 30px;
+        margin-bottom: 30px;
+        position: relative; /* Needed for chart responsiveness */
+        height: 40vh; /* Adjust height as needed */
+        width: 100%;
+      }
+
+      #tradeInput {
+        margin-top: 20px;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+      }
+
+      #todaysTradesList {
+        list-style-type: none;
+        padding: 0;
+        margin-top: 15px;
+      }
+      #todaysTradesList li {
+        background: #f8f9fa;
+        padding: 8px;
+        margin-bottom: 5px;
+        border-radius: 3px;
+        border: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9em;
+      }
+      #todaysTradesList li span:first-child {
+        font-weight: bold;
+        margin-right: 10px;
+      }
+      #todaysTradesList li .trade-note {
+        font-style: italic;
+        color: #555;
+        margin-left: 15px;
+        flex-grow: 1; /* Take remaining space */
+        text-align: left;
+      }
+
+      .loading-indicator,
+      .error-message {
+        display: none; /* Hidden by default */
+        text-align: center;
+        padding: 15px;
+        margin-top: 15px;
+        border-radius: 5px;
+      }
+
+      .loading-indicator {
+        background-color: #e0e0e0;
+      }
+
+      .error-message {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .chart-controls button {
+        margin-right: 5px;
+        background-color: #6c757d;
+      }
+      .chart-controls button:hover {
+        background-color: #5a6268;
+      }
+      .chart-controls button.active {
+        background-color: #007bff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Trading Journal & Progress Tracker</h1>
+
+      <div id="loadingIndicator" class="loading-indicator">Loading...</div>
+      <div id="errorMessage" class="error-message"></div>
+
+      <!-- Profile Selection View -->
+      <div id="profileSelection">
+        <h2>Select or Create a Profile</h2>
+        <ul id="profileList">
+          <!-- Profiles will be loaded here -->
+        </ul>
+        <button id="showCreateFormBtn">Create New Profile</button>
+
+        <div id="newProfileForm">
+          <h3>Create New Profile</h3>
+          <label for="profileName">Profile Name:</label>
+          <input type="text" id="profileName" required />
+
+          <label for="initialPrincipal">Initial Principal ($):</label>
+          <input type="number" id="initialPrincipal" required step="0.01" />
+
+          <label for="dailyInterestRate">Target Daily Interest Rate (%):</label>
+          <input type="number" id="dailyInterestRate" required step="0.01" />
+
+          <label for="tradingPeriodDays">Trading Period (Days):</label>
+          <input type="number" id="tradingPeriodDays" required step="1" />
+
+          <button id="saveProfileBtn">Save Profile</button>
+          <button id="cancelCreateBtn" class="cancel-btn">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Profile Detail View -->
+      <div id="profileDetail">
+        <button id="backToProfilesBtn">« Back to Profiles</button>
+        <h2 id="profileDetailName">Profile Details</h2>
+
+        <!-- Investor Dashboard -->
+        <div id="dashboard">
+          <h3>Dashboard</h3>
+          <div class="dashboard-grid">
+            <div class="dashboard-item">
+              <strong>Today's Date:</strong> <span id="db-todayDate">-</span>
+            </div>
+            <div class="dashboard-item">
+              <strong>Current Day #:</strong>
+              <span id="db-currentDay">-</span> /
+              <span id="db-totalDays">-</span>
+            </div>
+            <div class="dashboard-item">
+              <strong>Start Date:</strong> <span id="db-startDate">-</span>
+            </div>
+            <div class="dashboard-item">
+              <strong>Starting Principal:</strong>
+              <span id="db-startPrincipal">-</span>
+            </div>
+            <div class="dashboard-item">
+              <strong>Current Balance:</strong>
+              <span id="db-currentBalance">-</span>
+            </div>
+            <div class="dashboard-item">
+              <strong>Cumulative P/L:</strong>
+              <span id="db-cumulativePL">-</span>
+            </div>
+            <div class="dashboard-item">
+              <strong>Target Profit Today:</strong>
+              <span id="db-targetProfitToday">-</span>
+            </div>
+            <div class="dashboard-item">
+              <strong>Actual P/L Today:</strong>
+              <span id="db-actualPLToday">-</span>
+            </div>
+            <div class="dashboard-item">
+              <strong>Overall Status:</strong>
+              <span id="db-overallStatus">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart Area -->
+        <div id="chartContainer">
+          <h3>Progress Chart</h3>
+          <div class="chart-controls">
+            <button data-view="daily" class="active">Daily</button>
+            <button data-view="weekly">Weekly</button>
+            <button data-view="monthly">Monthly</button>
+            <button data-view="yearly">Yearly</button>
+          </div>
+          <canvas id="progressChart"></canvas>
+        </div>
+
+        <!-- Trader Input -->
+        <div id="tradeInput">
+          <h3>Add Trade Entry</h3>
+          <p
+            id="tradeEntryCutoffInfo"
+            style="font-style: italic; color: #555"
+          ></p>
+          <div id="tradeEntryForm">
+            <label for="plAmount">Profit/Loss Amount:</label>
+            <input type="number" id="plAmount" step="0.01" required />
+
+            <label for="tradeNotes">Notes (Optional):</label>
+            <textarea id="tradeNotes" rows="2"></textarea>
+
+            <button id="addTradeBtn">Add Trade</button>
+          </div>
+          <div
+            id="tradeEntryDisabled"
+            style="display: none; color: #dc3545; font-weight: bold"
+          >
+            Trade entry is currently disabled (after 5 AM cut-off for previous
+            day). New entries count towards today.
+          </div>
+
+          <h4>Trades Logged Today (<span id="tradeLogDate"></span>)</h4>
+          <ul id="todaysTradesList">
+            <!-- Today's trades will be listed here -->
+            <li>No trades entered for this date yet.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- Configuration ---
+      const APPS_SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbwpEM_gKkVJYe-NeQjvyAyoWXTylJDGmG4OavBp0uaFe7a6ebS2RBgtSZFHTbTna-p9iQ/exec"; // <-- **** PASTE YOUR DEPLOYED WEB APP URL HERE ****
+      const CUTOFF_HOUR = 5; // 5 AM - entries before this go to previous day
+
+      // --- Global State ---
+      let currentProfile = null;
+      let currentTrades = [];
+      let progressChartInstance = null;
+      let currentChartView = "daily"; // 'daily', 'weekly', 'monthly', 'yearly'
+
+      // --- DOM Elements ---
+      const loadingIndicator = document.getElementById("loadingIndicator");
+      const errorMessageDiv = document.getElementById("errorMessage");
+      const profileSelectionView = document.getElementById("profileSelection");
+      const profileDetailView = document.getElementById("profileDetail");
+      const profileListView = document.getElementById("profileList");
+      const showCreateFormBtn = document.getElementById("showCreateFormBtn");
+      const newProfileForm = document.getElementById("newProfileForm");
+      const saveProfileBtn = document.getElementById("saveProfileBtn");
+      const cancelCreateBtn = document.getElementById("cancelCreateBtn");
+      const backToProfilesBtn = document.getElementById("backToProfilesBtn");
+      const profileDetailName = document.getElementById("profileDetailName");
+      // Dashboard elements
+      const dbElements = {
+        todayDate: document.getElementById("db-todayDate"),
+        currentDay: document.getElementById("db-currentDay"),
+        totalDays: document.getElementById("db-totalDays"),
+        startDate: document.getElementById("db-startDate"),
+        startPrincipal: document.getElementById("db-startPrincipal"),
+        currentBalance: document.getElementById("db-currentBalance"),
+        cumulativePL: document.getElementById("db-cumulativePL"),
+        targetProfitToday: document.getElementById("db-targetProfitToday"),
+        actualPLToday: document.getElementById("db-actualPLToday"),
+        overallStatus: document.getElementById("db-overallStatus"),
+      };
+      // Trader Input elements
+      const tradeInputSection = document.getElementById("tradeInput");
+      const plAmountInput = document.getElementById("plAmount");
+      const tradeNotesInput = document.getElementById("tradeNotes");
+      const addTradeBtn = document.getElementById("addTradeBtn");
+      const todaysTradesList = document.getElementById("todaysTradesList");
+      const tradeLogDateSpan = document.getElementById("tradeLogDate");
+      const tradeEntryCutoffInfo = document.getElementById(
+        "tradeEntryCutoffInfo"
+      );
+      const tradeEntryForm = document.getElementById("tradeEntryForm");
+      const tradeEntryDisabled = document.getElementById("tradeEntryDisabled");
+      // Chart elements
+      const chartCanvas = document
+        .getElementById("progressChart")
+        .getContext("2d");
+      const chartControls = document.querySelector(".chart-controls");
+
+      // --- Utility Functions ---
+      const showLoading = () => (loadingIndicator.style.display = "block");
+      const hideLoading = () => (loadingIndicator.style.display = "none");
+      const showError = (message) => {
+        errorMessageDiv.textContent = `Error: ${message}`;
+        errorMessageDiv.style.display = "block";
+        // Hide error after 5 seconds
+        setTimeout(() => (errorMessageDiv.style.display = "none"), 5000);
+      };
+      const hideError = () => (errorMessageDiv.style.display = "none");
+      const formatCurrency = (amount) =>
+        amount.toLocaleString("en-US", { style: "currency", currency: "USD" }); // Adjust currency as needed
+
+      // Get today's date string in YYYY-MM-DD format based on local time
+      // Important: The 5 AM logic uses *local* browser time here for the UI cutoff check
+      // The Apps Script uses *its* timezone for deciding the date of the trade log.
+      function getTradeDateString() {
+        const now = new Date();
+        if (now.getHours() < CUTOFF_HOUR) {
+          // Before 5 AM, log refers to yesterday
+          const yesterday = new Date(now);
+          yesterday.setDate(now.getDate() - 1);
+          return yesterday.toISOString().split("T")[0];
+        } else {
+          // 5 AM or later, log refers to today
+          return now.toISOString().split("T")[0];
+        }
+      }
+      function getDisplayDateString() {
+        // Always show today's actual date in the UI header
+        return new Date().toISOString().split("T")[0];
+      }
+
+      function isTradeEntryAllowed() {
+        // Simple check based on browser time - purely for UI enabling/disabling
+        // The backend script makes the final decision on the date string
+        // For simplicity, we allow entry anytime, the backend assigns the date.
+        // You could disable based on local time if desired:
+        // const now = new Date();
+        // return now.getHours() >= CUTOFF_HOUR; // Only allow entry after 5 AM for "today"
+        return true; // Allow entry anytime, backend handles date logic
+      }
+
+      // --- API Call Function ---
+      async function callAppsScript(method, params = {}, body = null) {
+        showLoading();
+        hideError();
+        let url = APPS_SCRIPT_URL;
+        if (method === "GET" && Object.keys(params).length > 0) {
+          url += "?" + new URLSearchParams(params).toString();
+        }
+
+        const options = {
+          method: method,
+          headers: {
+            "Content-Type": "application/json", // Necessary for POST even if body is stringified later
+          },
+          // mode: 'cors', // CORS might be needed depending on deployment, but Apps Script web apps usually handle this.
+          // redirect: 'follow' // Apps Script web apps often involve redirects
+        };
+
+        // Apps Script POST expects a stringified payload in the body
+        // It doesn't directly parse JSON body like typical APIs
+        if (method === "POST" && body) {
+          options.body = JSON.stringify(body);
+          // Required for Apps Script POST from fetch
+          options.headers["Content-Type"] = "text/plain;charset=utf-8";
+        }
+
+        try {
+          const response = await fetch(url, options);
+          if (!response.ok) {
+            // Try to get error message from response body if possible
+            let errorText = `HTTP error! status: ${response.status}`;
+            try {
+              const errorData = await response.json(); // Try parsing JSON first
+              if (errorData && errorData.message) {
+                errorText += ` - ${errorData.message}`;
+              } else {
+                errorText += ` - ${await response.text()}`; // Fallback to text
+              }
+            } catch (e) {
+              // Error parsing error response, stick with status
+              errorText += ` - Could not parse error response body.`;
+            }
+            throw new Error(errorText);
+          }
+          const data = await response.json();
+          if (data.status === "error") {
+            throw new Error(data.message || "Unknown Apps Script error");
+          }
+          return data.data; // Return the 'data' part of the response
+        } catch (error) {
+          console.error("API Call Error:", error);
+          showError(error.message || "Failed to communicate with the server.");
+          throw error; // Re-throw to be caught by calling function if needed
+        } finally {
+          hideLoading();
+        }
+      }
+
+      // --- Profile Management ---
+      function displayProfiles(profiles) {
+        profileListView.innerHTML = ""; // Clear existing list
+        if (!profiles || profiles.length === 0) {
+          profileListView.innerHTML = "<li>No profiles found. Create one!</li>";
+          return;
+        }
+        profiles.forEach((profile) => {
+          const li = document.createElement("li");
+          li.dataset.profileName = profile.profileName; // Store name for easier access
+
+          const nameSpan = document.createElement("span");
+          nameSpan.textContent = profile.profileName;
+          nameSpan.onclick = () => selectProfile(profile.profileName); // Click text to select
+
+          const deleteButton = document.createElement("button");
+          deleteButton.textContent = "Delete";
+          deleteButton.classList.add("delete-btn");
+          deleteButton.onclick = (event) => {
+            event.stopPropagation(); // Prevent li click event
+            deleteProfile(profile.profileName);
+          };
+
+          li.appendChild(nameSpan);
+          li.appendChild(deleteButton);
+          profileListView.appendChild(li);
+        });
+      }
+
+      async function loadProfiles() {
+        try {
+          const profiles = await callAppsScript("GET", {
+            action: "getProfiles",
+          });
+          displayProfiles(profiles);
+          showProfileSelectionView(); // Ensure correct view is shown
+        } catch (error) {
+          // Error already shown by callAppsScript
+        }
+      }
+
+      function showProfileCreationForm() {
+        newProfileForm.style.display = "block";
+        showCreateFormBtn.style.display = "none";
+        document.getElementById("profileName").value = "";
+        document.getElementById("initialPrincipal").value = "";
+        document.getElementById("dailyInterestRate").value = "";
+        document.getElementById("tradingPeriodDays").value = "";
+      }
+
+      function hideProfileCreationForm() {
+        newProfileForm.style.display = "none";
+        showCreateFormBtn.style.display = "block";
+      }
+
+      async function saveProfile() {
+        const profileData = {
+          profileName: document.getElementById("profileName").value.trim(),
+          initialPrincipal: document.getElementById("initialPrincipal").value,
+          dailyInterestRate: document.getElementById("dailyInterestRate").value,
+          tradingPeriodDays: document.getElementById("tradingPeriodDays").value,
+        };
+
+        // Basic validation
+        if (
+          !profileData.profileName ||
+          !profileData.initialPrincipal ||
+          !profileData.dailyInterestRate ||
+          !profileData.tradingPeriodDays
+        ) {
+          showError("All profile fields are required.");
+          return;
+        }
+        if (
+          parseFloat(profileData.initialPrincipal) <= 0 ||
+          parseFloat(profileData.dailyInterestRate) <= 0 ||
+          parseInt(profileData.tradingPeriodDays) <= 0
+        ) {
+          showError("Principal, Rate, and Duration must be positive numbers.");
+          return;
+        }
+
+        try {
+          await callAppsScript(
+            "POST",
+            {},
+            { action: "createProfile", payload: profileData }
+          );
+          hideProfileCreationForm();
+          loadProfiles(); // Refresh the list
+        } catch (error) {
+          // Error handled by callAppsScript
+        }
+      }
+
+      async function deleteProfile(profileName) {
+        if (
+          !confirm(
+            `Are you sure you want to delete the profile "${profileName}" and all its associated trades? This cannot be undone.`
+          )
+        ) {
+          return;
+        }
+        try {
+          await callAppsScript(
+            "POST",
+            {},
+            { action: "deleteProfile", payload: { profileName: profileName } }
+          );
+          // If the deleted profile was the currently selected one, go back to list view
+          if (currentProfile && currentProfile.profileName === profileName) {
+            showProfileSelectionView();
+            currentProfile = null;
+            currentTrades = [];
+          }
+          loadProfiles(); // Refresh list
+        } catch (error) {
+          // Error handled by callAppsScript
+        }
+      }
+
+      // --- Profile Detail View & Dashboard ---
+      function showProfileSelectionView() {
+        profileSelectionView.style.display = "block";
+        profileDetailView.style.display = "none";
+        hideProfileCreationForm(); // Ensure create form is hidden
+        currentProfile = null; // Clear current profile state
+        currentTrades = [];
+        if (progressChartInstance) {
+          progressChartInstance.destroy(); // Clean up chart
+          progressChartInstance = null;
+        }
+      }
+
+      function showProfileDetailView() {
+        profileSelectionView.style.display = "none";
+        profileDetailView.style.display = "block";
+      }
+
+      async function selectProfile(profileName) {
+        hideError(); // Clear previous errors
+        try {
+          const data = await callAppsScript("GET", {
+            action: "getProfileData",
+            profileName: profileName,
+          });
+          currentProfile = data.profile;
+          currentTrades = data.trades || []; // Ensure trades is an array
+
+          profileDetailName.textContent = currentProfile.profileName;
+          updateDashboard();
+          updateTradeInputArea();
+          renderChart(currentChartView); // Render chart with default/current view
+          showProfileDetailView();
+        } catch (error) {
+          // Error shown by callAppsScript, potentially switch back to profile list
+          showProfileSelectionView();
+        }
+      }
+
+      function updateDashboard() {
+        if (!currentProfile) return;
+
+        const {
+          initialPrincipal,
+          dailyInterestRate,
+          tradingPeriodDays,
+          startDate,
+        } = currentProfile;
+        const rate = dailyInterestRate / 100; // Convert percentage to decimal
+
+        // --- Calculations ---
+        const today = new Date();
+        const todayStr = today.toISOString().split("T")[0];
+        const tradeDateStr = getTradeDateString(); // Date relevant for today's P/L calculation
+
+        const startDt = startDate ? new Date(startDate + "T00:00:00") : null; // Ensure start date includes time component for accurate diff
+        let currentDayNum = 0;
+        if (startDt) {
+          // Calculate difference in days, handling potential timezone shifts carefully
+          const diffTime = today.getTime() - startDt.getTime();
+          currentDayNum = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // Day 1 is the start date itself
+          currentDayNum = Math.max(1, currentDayNum); // Ensure it's at least 1
+        }
+
+        let currentBalance = initialPrincipal;
+        let cumulativePL = 0;
+        let yesterdaysBalance = initialPrincipal; // Balance at the *start* of yesterday
+        const dailyData = {}; // Store P/L per day: { 'YYYY-MM-DD': totalPL }
+
+        // Calculate cumulative P/L and daily totals up to *before* today's relevant trade date
+        currentTrades.forEach((trade) => {
+          if (trade.dateString < tradeDateStr) {
+            // Process trades before the current trade day
+            cumulativePL += trade.plAmount;
+            if (!dailyData[trade.dateString]) dailyData[trade.dateString] = 0;
+            dailyData[trade.dateString] += trade.plAmount;
+          }
+        });
+
+        // Calculate yesterday's *closing* balance by summing up P/L day by day
+        // This ensures compounding is based on actual closing balances
+        if (startDt) {
+          let balanceWalker = initialPrincipal;
+          let currentDate = new Date(startDt);
+          while (currentDate.toISOString().split("T")[0] < tradeDateStr) {
+            const dateStr = currentDate.toISOString().split("T")[0];
+            balanceWalker += dailyData[dateStr] || 0; // Add P/L for the day
+            yesterdaysBalance = balanceWalker; // Update yesterday's balance after processing the day
+            currentDate.setDate(currentDate.getDate() + 1); // Move to next day
+          }
+        } else {
+          // If no start date, assume initial principal is yesterday's balance for target calc
+          yesterdaysBalance = initialPrincipal;
+        }
+
+        // Calculate today's metrics
+        let actualPLToday = 0;
+        currentTrades.forEach((trade) => {
+          if (trade.dateString === tradeDateStr) {
+            actualPLToday += trade.plAmount;
+          }
+        });
+
+        // Final current balance and cumulative P/L (including today's trades)
+        currentBalance = initialPrincipal + cumulativePL + actualPLToday;
+        cumulativePL += actualPLToday; // Update cumulative to include today
+
+        const targetProfitToday = yesterdaysBalance * rate;
+
+        // Calculate Theoretical Compounded Target Balance for today
+        let theoreticalTargetBalance = initialPrincipal;
+        if (startDt) {
+          const daysElapsed = currentDayNum - 1; // Days passed *before* today
+          if (daysElapsed > 0) {
+            theoreticalTargetBalance =
+              initialPrincipal * Math.pow(1 + rate, daysElapsed);
+          }
+        }
+        const targetBalanceToday = theoreticalTargetBalance * (1 + rate); // Target balance *at end* of today
+
+        // Overall Status Calculation
+        const difference = currentBalance - targetBalanceToday;
+        let statusText = "";
+        let statusClass = "";
+        if (Math.abs(difference) < 0.01) {
+          // Consider floating point inaccuracies
+          statusText = "On Target";
+          statusClass = "status-ontarget";
+        } else if (difference > 0) {
+          statusText = `Ahead by ${formatCurrency(difference)}`;
+          statusClass = "status-ahead";
+        } else {
+          statusText = `Behind by ${formatCurrency(Math.abs(difference))}`;
+          statusClass = "status-behind";
+        }
+
+        // --- Update UI ---
+        dbElements.todayDate.textContent = getDisplayDateString();
+        dbElements.currentDay.textContent =
+          currentDayNum > 0 ? currentDayNum : "-";
+        dbElements.totalDays.textContent = tradingPeriodDays || "-";
+        dbElements.startDate.textContent = startDate || "Not Set";
+        dbElements.startPrincipal.textContent =
+          formatCurrency(initialPrincipal);
+        dbElements.currentBalance.textContent = formatCurrency(currentBalance);
+        dbElements.cumulativePL.textContent = formatCurrency(cumulativePL);
+        dbElements.cumulativePL.className =
+          cumulativePL >= 0 ? "status-ahead" : "status-behind"; // Color cumulative P/L
+        dbElements.targetProfitToday.textContent =
+          formatCurrency(targetProfitToday);
+        dbElements.actualPLToday.textContent = formatCurrency(actualPLToday);
+        dbElements.actualPLToday.className =
+          actualPLToday > targetProfitToday
+            ? "status-ahead"
+            : actualPLToday < 0
+            ? "status-behind"
+            : ""; // Color today's actual P/L vs target
+        dbElements.overallStatus.textContent = statusText;
+        dbElements.overallStatus.className = statusClass; // Apply status class
+      }
+
+      // --- Trader Input ---
+      function updateTradeInputArea() {
+        if (!currentProfile) return;
+
+        const tradeDateStr = getTradeDateString();
+        tradeLogDateSpan.textContent = tradeDateStr; // Show which date entries are for
+        tradeEntryCutoffInfo.textContent = `Entries before ${CUTOFF_HOUR}:00 AM local time are logged for the previous trading day (${tradeDateStr}).`;
+
+        // Clear previous entries
+        todaysTradesList.innerHTML = "";
+        let tradesFoundForDate = false;
+
+        currentTrades.forEach((trade) => {
+          if (trade.dateString === tradeDateStr) {
+            const li = document.createElement("li");
+            const plSpan = document.createElement("span");
+            plSpan.textContent = formatCurrency(trade.plAmount);
+            plSpan.style.color = trade.plAmount >= 0 ? "green" : "red";
+
+            li.appendChild(plSpan);
+
+            if (trade.notes) {
+              const noteSpan = document.createElement("span");
+              noteSpan.classList.add("trade-note");
+              noteSpan.textContent = `(${trade.notes})`;
+              li.appendChild(noteSpan);
+            }
+
+            todaysTradesList.appendChild(li);
+            tradesFoundForDate = true;
+          }
+        });
+
+        if (!tradesFoundForDate) {
+          todaysTradesList.innerHTML =
+            "<li>No trades entered for this date yet.</li>";
+        }
+
+        // Reset input fields
+        plAmountInput.value = "";
+        tradeNotesInput.value = "";
+
+        // Enable/disable form (currently always enabled based on isTradeEntryAllowed)
+        if (isTradeEntryAllowed()) {
+          tradeEntryForm.style.display = "block";
+          tradeEntryDisabled.style.display = "none";
+        } else {
+          tradeEntryForm.style.display = "none";
+          tradeEntryDisabled.style.display = "block";
+        }
+      }
+
+      async function addTrade() {
+        if (!currentProfile) return;
+
+        const plAmount = plAmountInput.value;
+        const notes = tradeNotesInput.value.trim();
+
+        if (plAmount === "" || isNaN(parseFloat(plAmount))) {
+          showError("Please enter a valid Profit/Loss amount.");
+          return;
+        }
+
+        const tradeData = {
+          profileName: currentProfile.profileName,
+          plAmount: parseFloat(plAmount),
+          notes: notes,
+          // dateString and timestamp are added by the backend
+        };
+
+        try {
+          // The backend response includes the dateString it used
+          const result = await callAppsScript(
+            "POST",
+            {},
+            { action: "addTrade", payload: tradeData }
+          );
+
+          // Optimistically add to local state for faster UI update
+          // Create a temporary trade object - backend timestamp won't be exact match
+          const optimisticTrade = {
+            ...tradeData,
+            dateString: result.dateString, // Use date from backend response
+            timestamp: new Date().toISOString(), // Approximate timestamp
+          };
+          currentTrades.push(optimisticTrade);
+          currentTrades.sort(
+            (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+          ); // Keep sorted
+
+          // Full refresh might be safer, but optimistic update feels faster:
+          updateDashboard();
+          updateTradeInputArea(); // Refreshes the list of today's trades
+          renderChart(currentChartView); // Update chart
+
+          // Optional: Trigger a full data refresh from server after a short delay
+          // setTimeout(() => selectProfile(currentProfile.profileName), 1000);
+        } catch (error) {
+          // Error shown by callAppsScript
+        }
+      }
+
+      // --- Charting (using Chart.js) ---
+
+      function getWeekNumber(d) {
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); // Make Sunday day 7
+        var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        var weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+        return [d.getUTCFullYear(), weekNo];
+      }
+
+      function aggregateData(viewType) {
+        if (!currentProfile || !currentTrades)
+          return { labels: [], actualData: [], targetData: [] };
+
+        const { initialPrincipal, dailyInterestRate, startDate } =
+          currentProfile;
+        const rate = dailyInterestRate / 100;
+        const startDt = startDate
+          ? new Date(startDate + "T00:00:00")
+          : new Date(currentTrades[0]?.timestamp || Date.now()); // Fallback start date
+
+        const aggregated = {}; // Key: period (date, week, month, year), Value: { actualPL: 0, date: Date object }
+
+        // Aggregate actual P/L
+        currentTrades.forEach((trade) => {
+          const tradeDate = new Date(trade.dateString + "T00:00:00");
+          let key;
+          switch (viewType) {
+            case "weekly":
+              const [yearW, week] = getWeekNumber(tradeDate);
+              key = `${yearW}-W${week.toString().padStart(2, "0")}`; // ISO Week format
+              break;
+            case "monthly":
+              key = `${tradeDate.getFullYear()}-${(tradeDate.getMonth() + 1)
+                .toString()
+                .padStart(2, "0")}`;
+              break;
+            case "yearly":
+              key = `${tradeDate.getFullYear()}`;
+              break;
+            case "daily":
+            default:
+              key = trade.dateString; // YYYY-MM-DD
+              break;
+          }
+
+          if (!aggregated[key]) {
+            aggregated[key] = { actualPL: 0, date: tradeDate }; // Store first date of period
+          }
+          aggregated[key].actualPL += trade.plAmount;
+          // Use the latest date in the period for sorting/display if needed
+          if (tradeDate > aggregated[key].date) {
+            aggregated[key].date = tradeDate;
+          }
+        });
+
+        // Sort periods chronologically based on the date stored
+        const sortedKeys = Object.keys(aggregated).sort(
+          (a, b) => aggregated[a].date - aggregated[b].date
+        );
+
+        const labels = [];
+        const actualData = []; // Cumulative Actual Balance
+        const targetData = []; // Cumulative Target Balance
+
+        let cumulativeActual = initialPrincipal;
+        let cumulativeTarget = initialPrincipal;
+        let daysElapsed = 0; // Tracks total days for target calculation
+
+        // Determine the *end* date for iteration based on the last trade or today
+        const lastTradeDate =
+          currentTrades.length > 0
+            ? new Date(
+                currentTrades[currentTrades.length - 1].dateString + "T00:00:00"
+              )
+            : startDt;
+        const todayDate = new Date(getDisplayDateString() + "T00:00:00");
+        const endDate = todayDate > lastTradeDate ? todayDate : lastTradeDate;
+
+        // Iterate day-by-day from start date to calculate targets accurately
+        // and accumulate actuals based on the chosen aggregation period
+        let currentDate = new Date(startDt);
+        let currentPeriodActualPL = 0;
+        let lastPeriodKey = null;
+
+        while (currentDate <= endDate) {
+          const currentDayStr = currentDate.toISOString().split("T")[0];
+          let periodKey;
+          let isEndOfPeriod = false; // Flag to plot data point at end of period
+
+          switch (viewType) {
+            case "weekly":
+              const [yearW, week] = getWeekNumber(currentDate);
+              periodKey = `${yearW}-W${week.toString().padStart(2, "0")}`;
+              // End of week is Sunday (day 0) or if the next day is in a different week
+              const nextDayW = new Date(currentDate);
+              nextDayW.setDate(currentDate.getDate() + 1);
+              const [nextYearW, nextWeek] = getWeekNumber(nextDayW);
+              isEndOfPeriod =
+                currentDate.getDay() === 0 ||
+                `${nextYearW}-W${nextWeek.toString().padStart(2, "0")}` !==
+                  periodKey;
+              break;
+            case "monthly":
+              periodKey = `${currentDate.getFullYear()}-${(
+                currentDate.getMonth() + 1
+              )
+                .toString()
+                .padStart(2, "0")}`;
+              // End of month check
+              const nextDayM = new Date(currentDate);
+              nextDayM.setDate(currentDate.getDate() + 1);
+              isEndOfPeriod = nextDayM.getMonth() !== currentDate.getMonth();
+              break;
+            case "yearly":
+              periodKey = `${currentDate.getFullYear()}`;
+              // End of year check
+              const nextDayY = new Date(currentDate);
+              nextDayY.setDate(currentDate.getDate() + 1);
+              isEndOfPeriod =
+                nextDayY.getFullYear() !== currentDate.getFullYear();
+              break;
+            case "daily":
+            default:
+              periodKey = currentDayStr;
+              isEndOfPeriod = true; // Plot daily
+              break;
+          }
+
+          // Accumulate actual P/L for the current day if it belongs to a period with trades
+          if (
+            aggregated[periodKey] &&
+            aggregated[periodKey].date.toISOString().split("T")[0] ===
+              currentDayStr
+          ) {
+            currentPeriodActualPL += aggregated[periodKey].actualPL;
+          } else {
+            // Check if this specific *day* had trades (needed for daily view)
+            const dailyTrades = currentTrades.filter(
+              (t) => t.dateString === currentDayStr
+            );
+            dailyTrades.forEach((t) => (currentPeriodActualPL += t.plAmount));
+          }
+
+          // Calculate target for the end of the current day *before* adding today's P/L
+          // Don't compound target on day 0 (start date itself)
+          if (daysElapsed > 0) {
+            cumulativeTarget *= 1 + rate;
+          }
+
+          // If it's the end of the aggregation period, record data point
+          if (isEndOfPeriod) {
+            cumulativeActual = initialPrincipal + currentPeriodActualPL; // Balance *at the end* of the period
+
+            labels.push(periodKey); // Use period key as label
+            actualData.push(cumulativeActual);
+            targetData.push(cumulativeTarget);
+          }
+
+          // Move to the next day
+          currentDate.setDate(currentDate.getDate() + 1);
+          daysElapsed++;
+        }
+
+        // Ensure the very last period (which might be partial) is added if not captured by isEndOfPeriod
+        // This usually applies if the loop ends exactly on the boundary but hasn't been flagged yet.
+        // However, the current loop structure should capture the last day correctly.
+
+        return { labels, actualData, targetData };
+      }
+
+      function renderChart(viewType) {
+        if (!currentProfile) return;
+
+        const { labels, actualData, targetData } = aggregateData(viewType);
+
+        const chartData = {
+          labels: labels,
+          datasets: [
+            {
+              label: "Actual Balance",
+              data: actualData,
+              borderColor: "rgb(54, 162, 235)", // Blue
+              backgroundColor: "rgba(54, 162, 235, 0.2)",
+              fill: false,
+              tension: 0.1,
+            },
+            {
+              label: "Target Balance (Compounded)",
+              data: targetData,
+              borderColor: "rgb(255, 99, 132)", // Red
+              backgroundColor: "rgba(255, 99, 132, 0.2)",
+              fill: false,
+              tension: 0.1,
+              borderDash: [5, 5], // Dashed line for target
+            },
+          ],
+        };
+
+        // Destroy previous chart instance if it exists
+        if (progressChartInstance) {
+          progressChartInstance.destroy();
+        }
+
+        progressChartInstance = new Chart(chartCanvas, {
+          type: "line",
+          data: chartData,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false, // Allow chart to fill container height
+            scales: {
+              x: {
+                // For daily view with many points, date adapter might be better
+                // type: (viewType === 'daily' && labels.length > 30) ? 'time' : 'category', // Auto-detect or set based on view?
+                // time: { unit: 'day' }, // If using time scale
+                title: {
+                  display: true,
+                  text:
+                    "Period (" +
+                    viewType.charAt(0).toUpperCase() +
+                    viewType.slice(1) +
+                    ")",
+                },
+              },
+              y: {
+                beginAtZero: false, // Start near the lowest value for better visibility
+                title: { display: true, text: "Account Balance" },
+                ticks: {
+                  // Format Y-axis as currency
+                  callback: function (value, index, values) {
+                    return formatCurrency(value);
+                  },
+                },
+              },
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    let label = context.dataset.label || "";
+                    if (label) {
+                      label += ": ";
+                    }
+                    if (context.parsed.y !== null) {
+                      label += formatCurrency(context.parsed.y);
+                    }
+                    return label;
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        // Update active button style
+        chartControls.querySelectorAll("button").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.view === viewType);
+        });
+      }
+
+      // --- Event Listeners ---
+      window.addEventListener("DOMContentLoaded", () => {
+        // Basic check for Apps Script URL placeholder
+        if (APPS_SCRIPT_URL.includes("YOUR_APPS_SCRIPT_WEB_APP_URL_HERE")) {
+          showError(
+            "Configuration Error: Please paste your Google Apps Script Web App URL into the APPS_SCRIPT_URL variable in the script section."
+          );
+          // Disable buttons to prevent errors
+          saveProfileBtn.disabled = true;
+          addTradeBtn.disabled = true;
+          showCreateFormBtn.disabled = true;
+          return; // Stop further execution
+        }
+        loadProfiles();
+      });
+
+      showCreateFormBtn.addEventListener("click", showProfileCreationForm);
+      cancelCreateBtn.addEventListener("click", hideProfileCreationForm);
+      saveProfileBtn.addEventListener("click", saveProfile);
+      backToProfilesBtn.addEventListener("click", showProfileSelectionView);
+      addTradeBtn.addEventListener("click", addTrade);
+
+      // Chart view controls
+      chartControls.addEventListener("click", (event) => {
+        if (event.target.tagName === "BUTTON") {
+          const viewType = event.target.dataset.view;
+          if (viewType && viewType !== currentChartView) {
+            currentChartView = viewType;
+            renderChart(currentChartView);
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
